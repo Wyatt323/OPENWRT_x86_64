@@ -10,5 +10,3 @@
 LAN口地址为：192.168.3.204，并开启了DHCP功能.
 账号:root默认密码为：admin
 请用Google Chrome浏览器来进入WEB管理界面，其他浏览器可能不兼容！！！
-
-相关教程请前往https://p3terx.com/archives/build-openwrt-with-github-actions.html
