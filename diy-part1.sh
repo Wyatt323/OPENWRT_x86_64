@@ -15,7 +15,11 @@
 
 # Add a feed source
 echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
+
+#加入mcat主题
 echo 'src-git mcat https://github.com/Wyatt323/luci-theme-mcat' >>feeds.conf.default
+
+#加入kenzok8大佬的软件包
 #echo 'src-git kenzok8 https://github.com/kenzok8/openwrt-packages' >>feeds.conf.default
 #echo 'src-git small https://github.com/kenzok8/small' >>feeds.conf.default
 
