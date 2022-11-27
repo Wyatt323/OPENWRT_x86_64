@@ -14,7 +14,7 @@
 sed -i 's/^#\(.*helloworld\)/\1/' feeds.conf.default
 
 # Add a feed source
-echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
+#echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
 
 #加入mcat主题
 echo 'src-git mcat https://github.com/Wyatt323/luci-theme-mcat' >>feeds.conf.default
