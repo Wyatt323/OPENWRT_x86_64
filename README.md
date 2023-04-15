@@ -1,5 +1,5 @@
 ## 基于LEAN源码编译！
-## 此固件不带Docker，需要Docker请移步[OPENWRT_x86_64_Docker](https://github.com/Wyatt323/OPENWRT_x86_64_Docker)
+## 此固件默认不带Docker，需要Docker请自行fork，修改配置文件
   
 此项目每周一凌晨编译一次，早上8点之前会上传最新固件！
   
