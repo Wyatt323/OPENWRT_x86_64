@@ -27,7 +27,7 @@ sed -i "s/${orig_version}/${orig_version} ($(date +"%Y-%m-%d"))/g" zzz-default-s
 popd
 
 # 修改默认主题
-sed -i 's/luci-theme-design/luci-theme-mcat/g' feeds/luci/collections/luci/Makefile
+sed -i 's/luci-theme-infinityfreedom/luci-theme-design/g' feeds/luci/collections/luci/Makefile
 
 # 修改连接数数
 sed -i 's/net.netfilter.nf_conntrack_max=.*/net.netfilter.nf_conntrack_max=65535/g' package/kernel/linux/files/sysctl-nf-conntrack.conf
