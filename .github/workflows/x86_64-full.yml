@@ -42,7 +42,9 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@main
-
+      with:
+        fetch-depth: 0
+      
     - name: 检查服务器性能
       run: |
         echo "警告⚠"
