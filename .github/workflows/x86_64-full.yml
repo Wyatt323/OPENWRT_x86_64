@@ -86,27 +86,6 @@ jobs:
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
 
-    - name: Maximize disk space
-       run: |
-         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-         sudo rm -rf /usr/lib/jvm /usr/lib/firefox /usr/lib/google-cloud-sdk
-         sudo apt-get clean
-         sudo docker image prune -a -f
-         df -h
-
-    - name: Relink /tmp to workdir
-      run: |
-        sudo rm -rf /tmp
-        mkdir -p /workdir/tmp
-        sudo ln -s /workdir/tmp /tmp
-        df -h
-
-    - name: Clean temporary directories
-      run: |
-      cd openwrt
-      rm -rf tmp build_dir/hostpkg
-      df -h
-
 
     - name: Clone source code
       working-directory: /workdir
