@@ -57,6 +57,17 @@ jobs:
         echo "--------------------------硬盘信息--------------------------"
         echo "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
 
+    - name: Maximize disk space
+      run: |
+        echo "Before cleanup:"
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+        sudo rm -rf /usr/lib/jvm /usr/lib/firefox /usr/lib/google-cloud-sdk
+        sudo apt-get clean
+        sudo docker image prune -a -f
+        df -h
+
+
     - name: 释放磁盘空间
       uses: jlumbroso/free-disk-space@main
       with:
