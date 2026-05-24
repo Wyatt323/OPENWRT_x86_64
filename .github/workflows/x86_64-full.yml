@@ -10,6 +10,9 @@
 
 name: Build OpenWrt_x86_64
 
+permissions:
+  contents: write
+
 on:
   repository_dispatch:
   workflow_dispatch:
