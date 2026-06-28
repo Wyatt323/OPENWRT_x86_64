@@ -215,7 +215,15 @@ jobs:
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
 
+    # - name: Delete workflow runs
+    #   uses: GitRML/delete-workflow-runs@main
+    #   with:
+    #     retain_days: 1
+    #     keep_minimum_runs: 1
+
     - name: Delete workflow runs
+      if: always()
+      continue-on-error: true
       uses: GitRML/delete-workflow-runs@main
       with:
         retain_days: 1
