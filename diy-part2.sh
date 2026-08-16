@@ -10,8 +10,7 @@
 # Description: OpenWrt DIY script part 2 (After Update feeds)
 #
 
-# 添加温度显示
-sed -i 's/or "1"%>/or "1"%> ( <%=luci.sys.exec("expr `cat \/sys\/class\/thermal\/thermal_zone0\/temp` \/ 1000") or "?"%> \&#8451; ) /g' feeds/luci/modules/luci-mod-admin-full/luasrc/view/admin_status/index.htm
+# 温度显示的旧 LuCI Lua 模板路径已在当前 LEDE 中移除，故不再修改该文件。
 
 # Modify default IP
 sed -i 's/192.168.1.1/192.168.100.1/g' package/base-files/files/bin/config_generate
@@ -71,15 +70,11 @@ git clone --depth=1 https://github.com/BoringCat/luci-app-mentohust
 #git clone --depth=1 https://github.com/jerrykuku/luci-app-jd-dailybonus
 git clone --depth=1 https://github.com/vernesong/OpenClash
 #git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome
-git clone --depth=1 https://github.com/riverscn/openwrt-iptvhelper
-git clone --depth=1 https://github.com/jerrykuku/luci-app-vssr
 git clone --depth=1 https://github.com/jerrykuku/lua-maxminddb
 #git clone --depth=1 https://github.com/tianiue/luci-app-bypass
 #git clone --depth=1 https://github.com/iwrt/luci-app-ikoolproxy
-git clone --depth=1 https://github.com/yuos-bit/luci-app-openclash
 #git clone --depth=1 https://github.com/hyy-666/luci-app-qBittorrent-enhanced
 git clone --depth=1 https://github.com/esirplayground/luci-app-poweroff
-git clone --depth=1 https://github.com/kenzok78/luci-app-netspeedtest
 #git clone --depth=1 https://github.com/souwei168/luci-app-store
 #git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall2
 #git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall
