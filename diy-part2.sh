@@ -26,6 +26,13 @@ fi
 ./scripts/feeds uninstall luci-theme-argon
 git clone https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
 
+# 本固件不使用 Open vSwitch；当前 feed 的同名 PROVIDES 会生成自依赖。
+./scripts/feeds uninstall openvswitch
+
+# dnsmasq 的 IPset 子选项依赖 dnsmasq-full，不能再反向成为包本身的条件。
+# 本固件供 OpenClash 使用，始终提供 IPset 内核模块。
+sed -i 's/+PACKAGE_dnsmasq_full_ipset:kmod-ipt-ipset/+kmod-ipt-ipset/g' package/network/services/dnsmasq/Makefile
+
 # 添加 MMWX 主题，首次启动默认启用。
 git clone https://github.com/Wyatt323/luci-theme-mmwx.git package/luci-theme-mmwx
 mkdir -p files/etc/uci-defaults
@@ -44,4 +51,6 @@ git clone --depth=1 https://github.com/vernesong/OpenClash package/lean/OpenClas
 git clone --depth=1 https://github.com/esirplayground/luci-app-poweroff package/lean/luci-app-poweroff
 # 原作者当前仓库同时提供测速界面、homebox 和 Ookla 依赖。
 git clone --depth=1 https://github.com/sirpdboy/NetSpeedTest.git package/lean/NetSpeedTest
+# 自带 speedtest 脚本不使用 pkg_resources；当前 Python feed 已移除此子包。
+sed -i 's/ +python3-pkg-resources//g' package/lean/NetSpeedTest/luci-app-netspeedtest/Makefile
 git clone --depth=1 https://github.com/nickilchen/luci-app-socat package/lean/luci-app-socat

@@ -168,7 +168,11 @@ jobs:
         mkdir -p "$GITHUB_WORKSPACE/build-logs"
         cp openwrt/.config "$GITHUB_WORKSPACE/build-logs/requested.config"
         cd openwrt
-        make defconfig 2>&1 | tee "$GITHUB_WORKSPACE/build-logs/config.log"
+        make defconfig RECURSIVE_DEP_IS_ERROR=1 2>&1 | tee "$GITHUB_WORKSPACE/build-logs/config.log"
+        if grep -Ei '(^|:)error:|recursive dependency detected' "$GITHUB_WORKSPACE/build-logs/config.log"; then
+          echo '::error::Kconfig 报告错误，停止构建。'
+          exit 1
+        fi
         cp .config "$GITHUB_WORKSPACE/build-logs/final.config"
         cp feeds.conf.default "$GITHUB_WORKSPACE/build-logs/feeds.conf.default"
         bash "$GITHUB_WORKSPACE/scripts/check-config.sh" "$GITHUB_WORKSPACE/build-logs/requested.config" .config
