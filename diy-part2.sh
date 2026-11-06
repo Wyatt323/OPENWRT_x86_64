@@ -29,6 +29,10 @@ git clone https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-a
 # 本固件不使用 Open vSwitch；当前 feed 的同名 PROVIDES 会生成自依赖。
 ./scripts/feeds uninstall openvswitch ovn ovsd
 
+# LuCI feed 的 EQoS 依赖高通 NSS；x86 使用已添加的 kenzok8 通用版本。
+./scripts/feeds uninstall luci-app-eqos
+./scripts/feeds install -p kenzok8 luci-app-eqos
+
 # dnsmasq 的 IPset 子选项依赖 dnsmasq-full，不能再反向成为包本身的条件。
 # 本固件供 OpenClash 使用，始终提供 IPset 内核模块。
 sed -i 's/+PACKAGE_dnsmasq_full_ipset:kmod-ipt-ipset/+kmod-ipt-ipset/g' package/network/services/dnsmasq/Makefile

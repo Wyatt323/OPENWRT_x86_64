@@ -13,7 +13,7 @@ while IFS= read -r option; do
 done < <(grep -E '^CONFIG_PACKAGE_[A-Za-z0-9_+-]+=y$' "$requested" | sort -u)
 
 failed=0
-for package in luci-theme-mmwx luci-app-openclash luci-app-netspeedtest; do
+for package in luci-theme-mmwx luci-app-openclash luci-app-netspeedtest luci-app-eqos; do
     option="CONFIG_PACKAGE_${package}=y"
     if grep -Fxq "$option" "$requested" && ! grep -Fxq "$option" "$generated"; then
         echo "::error::关键组件 $package 未进入最终配置，停止构建以避免发布缺失功能的固件。"
