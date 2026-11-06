@@ -14,6 +14,10 @@ permissions:
   contents: write
   actions: write
 
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: firmware-${{ github.ref }}
   cancel-in-progress: false
@@ -152,9 +156,10 @@ jobs:
           mkdir -p openwrt/files
           cp -a files/. openwrt/files/
         fi
-        cp "$CONFIG_FILE" openwrt/.config
         cd openwrt
         bash "$GITHUB_WORKSPACE/$DIY_P2_SH"
+        # feeds 命令可能自动生成 .config，最后再加载用户选择。
+        cp "$GITHUB_WORKSPACE/$CONFIG_FILE" .config
 
     - name: SSH connection to Actions
       uses: P3TERX/ssh2actions@v1.0.0
@@ -166,7 +171,7 @@ jobs:
     - name: Validate final configuration
       run: |
         mkdir -p "$GITHUB_WORKSPACE/build-logs"
-        cp openwrt/.config "$GITHUB_WORKSPACE/build-logs/requested.config"
+        cp "$CONFIG_FILE" "$GITHUB_WORKSPACE/build-logs/requested.config"
         cd openwrt
         make defconfig RECURSIVE_DEP_IS_ERROR=1 2>&1 | tee "$GITHUB_WORKSPACE/build-logs/config.log"
         if grep -Ei '(^|:)error:|recursive dependency detected' "$GITHUB_WORKSPACE/build-logs/config.log"; then

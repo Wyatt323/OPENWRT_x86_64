@@ -24,6 +24,7 @@ LAN 管理地址为 **192.168.3.201**，网关和 DNS 为 `192.168.3.1`，以 `f
 - 下载文件使用 Actions 缓存。下载或编译失败时，可以在该任务的 Artifacts 中下载 `build-logs`，查看 `download.log`、`build.log`、最终配置和源码提交版本。
 - 如果 `make defconfig` 移除了请求的软件包，会输出警告；MMWX、OpenClash 和网速测试缺失时直接停止构建。
 - Kconfig 循环依赖按错误处理，同时检查配置日志，避免只凭 Actions 的绿色状态误判配置有效。
+- 软件包全部准备好后才加载仓库配置，并用原始配置核对最终结果，避免 feeds 自动生成配置时丢失新加入的主题和插件。
 - 只有编译成功且实际生成 x86 镜像后才会上传固件和创建 Release。
 - `Update Checker` 保持手动触发，用于检查 LEDE 上游版本并按需触发主工作流；不再需要单独的 `ACTIONS_TRIGGER_PAT`。每周定时编译由主工作流负责。
 

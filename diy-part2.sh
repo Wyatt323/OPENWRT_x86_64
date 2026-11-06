@@ -27,7 +27,7 @@ fi
 git clone https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
 
 # 本固件不使用 Open vSwitch；当前 feed 的同名 PROVIDES 会生成自依赖。
-./scripts/feeds uninstall openvswitch
+./scripts/feeds uninstall openvswitch ovn ovsd
 
 # dnsmasq 的 IPset 子选项依赖 dnsmasq-full，不能再反向成为包本身的条件。
 # 本固件供 OpenClash 使用，始终提供 IPset 内核模块。
