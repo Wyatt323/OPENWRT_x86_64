@@ -47,6 +47,15 @@ rm openwrt/package/lean/luci-theme-argon -rf
 #git clone https://github.com/Leo-Jo-My/luci-theme-opentomcat.git package/luci-theme-opentomcat
 #git clone https://github.com/openwrt-develop/luci-theme-atmaterial.git package/luci-theme-atmaterial
 git clone https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
+
+# 添加 MMWX 主题
+git clone https://github.com/Wyatt323/luci-theme-mmwx.git package/luci-theme-mmwx
+
+# 固件首次启动时默认使用 MMWX
+mkdir -p files/etc/uci-defaults
+cp package/luci-theme-mmwx/examples/99-mmwx-default files/etc/uci-defaults/
+chmod 0755 files/etc/uci-defaults/99-mmwx-default
+
 #git clone https://github.com/souwei168/mypackages.git package/mypackages
 git clone https://github.com/kiddin9/luci-app-dnsfilter.git package/luci-app-dnsfilter
 #git clone https://github.com/kenzok8/openwrt-packages.git package/openwrt-packages
