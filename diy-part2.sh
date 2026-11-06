@@ -34,10 +34,11 @@ chmod 0755 files/etc/uci-defaults/99-mmwx-default
 
 # 下载实际启用的额外插件。未启用的插件可从 feeds 中另行选择。
 mkdir -p package/lean
-git clone --depth=1 https://github.com/ysc3839/luci-proto-minieap package/lean/luci-proto-minieap
+# luci-proto-minieap 已由 LuCI feed 提供，不重复拉取旧版本。
 git clone --depth=1 https://github.com/BoringCat/luci-app-mentohust package/lean/luci-app-mentohust
 
 # OpenClash 仅使用 vernesong 官方源码。VSSR 已停用。
+./scripts/feeds uninstall luci-app-openclash
 git clone --depth=1 https://github.com/vernesong/OpenClash package/lean/OpenClash
 
 git clone --depth=1 https://github.com/esirplayground/luci-app-poweroff package/lean/luci-app-poweroff
