@@ -10,6 +10,9 @@
 # Description: OpenWrt DIY script part 1 (Before Update feeds)
 #
 
+set -Eeuo pipefail
+trap 'echo "::error file=diy-part1.sh,line=$LINENO::添加软件源失败"' ERR
+
 # Uncomment a feed source
 sed -i 's/^#\(.*helloworld\)/\1/' feeds.conf.default
 

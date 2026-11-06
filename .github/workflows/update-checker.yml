@@ -1,58 +1,55 @@
-#
-# Copyright (c) 2019-2021 P3TERX <https://p3terx.com>
-#
-# This is free software, licensed under the MIT License.
-# See /LICENSE for more information.
-#
-# https://github.com/P3TERX/Actions-OpenWrt
-# File: .github/workflows/update-checker.yml
-# Description: Source code update checker
-#
-
 name: Update Checker
+
+# The main build workflow keeps the weekly schedule. This checker is manual.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: update-checker-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
 
-on:
-  workflow_dispatch:
-  #schedule:
-    #- cron: 0 0 * * 0
-
 jobs:
   check:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
+      - name: Get upstream commit
+        id: getHash
+        run: |
+          commit=$(git ls-remote --exit-code "$REPO_URL" "refs/heads/$REPO_BRANCH" | awk '{print $1}')
+          test -n "$commit"
+          echo "commitHash=$commit" >> "$GITHUB_OUTPUT"
 
-    - name: Get Commit Hash
-      id: getHash
-      run: |
-        git clone --depth 1 $REPO_URL -b $REPO_BRANCH .
-        echo "::set-output name=commitHash::$(git rev-parse HEAD)"
+      - name: Compare upstream commit
+        id: cacheHash
+        uses: actions/cache@v4
+        with:
+          path: .commitHash
+          key: lede-master-${{ steps.getHash.outputs.commitHash }}
 
-    - name: Compare Commit Hash
-      id: cacheHash
-      uses: actions/cache@v2
-      with:
-        path: .commitHash
-        key: HEAD-${{ steps.getHash.outputs.commitHash }}
+      - name: Trigger build for new upstream commit
+        if: steps.cacheHash.outputs.cache-hit != 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'x86_64-full.yml',
+              ref: context.ref.replace('refs/heads/', '')
+            });
 
-    - name: Save New Commit Hash
-      if: steps.cacheHash.outputs.cache-hit != 'true'
-      run: |
-        echo ${{ steps.getHash.outputs.commitHash }} | tee .commitHash
-
-    - name: Trigger build
-      if: steps.cacheHash.outputs.cache-hit != 'true'
-      uses: peter-evans/repository-dispatch@v1
-      with:
-        token: ${{ secrets.ACTIONS_TRIGGER_PAT }}
-        event-type: Source Code Update
-
-    - name: Delete workflow runs
-      uses: GitRML/delete-workflow-runs@main
-      with:
-        retain_days: 1
-        keep_minimum_runs: 1
+      # Only remember a revision after dispatch succeeds, so a failed trigger can retry.
+      - name: Save successfully dispatched upstream commit
+        if: steps.cacheHash.outputs.cache-hit != 'true'
+        env:
+          UPSTREAM_COMMIT: ${{ steps.getHash.outputs.commitHash }}
+        run: printf '%s\n' "$UPSTREAM_COMMIT" > .commitHash

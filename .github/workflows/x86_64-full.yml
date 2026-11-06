@@ -12,6 +12,11 @@ name: Build OpenWrt_x86_64
 
 permissions:
   contents: write
+  actions: write
+
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: false
 
 on:
   repository_dispatch:
@@ -21,6 +26,11 @@ on:
         description: 'SSH connection to Actions'
         required: false
         default: 'false'
+      config_only:
+        description: '只验证源码和最终配置，不下载或编译固件'
+        type: boolean
+        required: false
+        default: false
   schedule:
     - cron: 00 16 * * 0
 
@@ -41,10 +51,11 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 360
 
     steps:
     - name: Checkout
-      uses: actions/checkout@main
+      uses: actions/checkout@v4
       
     - name: 检查服务器性能
       run: |
@@ -62,18 +73,19 @@ jobs:
 
 
     - name: 释放磁盘空间
+      if: inputs.config_only != true
       uses: jlumbroso/free-disk-space@main
       with:
         # this might remove tools that are actually needed,
         # if set to "true" but frees about 6 GB
-        tool-cache: true
+        preinstalled-runtimes: true
         # all of these default to true, but feel free to set to
         # "false" if necessary for your workflow
         android: true
         dotnet: true
         haskell: true
         large-packages: true
-        swap-storage: true
+        swap-storage: false
 
     - name: Initialization environment
       env:
@@ -94,20 +106,34 @@ jobs:
       working-directory: /workdir
       run: |
         df -hT $PWD
-        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        git clone --depth 1 "$REPO_URL" -b "$REPO_BRANCH" openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
     - name: Cache
+      if: inputs.config_only != true
       uses: klever1988/cachewrtbuild@main
       with:
         ccache: 'true'
         prefix: ${{ github.workspace }}/openwrt
 
+    - name: Restore downloaded sources
+      id: downloads-cache
+      if: inputs.config_only != true
+      uses: actions/cache/restore@v4
+      continue-on-error: true
+      with:
+        path: /workdir/openwrt/dl
+        key: ${{ runner.os }}-lede-dl-${{ hashFiles('x86_64-full.config', 'diy-part*.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          ${{ runner.os }}-lede-dl-${{ hashFiles('x86_64-full.config', 'diy-part*.sh') }}-
+          ${{ runner.os }}-lede-dl-
+
     - name: Load custom feeds
       run: |
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-        chmod +x $DIY_P1_SH
+        if [ -f "$FEEDS_CONF" ]; then
+          cp "$FEEDS_CONF" openwrt/feeds.conf.default
+        fi
         cd openwrt
-        $GITHUB_WORKSPACE/$DIY_P1_SH
+        bash "$GITHUB_WORKSPACE/$DIY_P1_SH"
 
     - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a
@@ -117,45 +143,86 @@ jobs:
 
     - name: Load custom configuration
       run: |
-        [ -e files ] && mv files openwrt/files
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-        chmod +x $DIY_P2_SH
+        if [ -d files ]; then
+          mkdir -p openwrt/files
+          cp -a files/. openwrt/files/
+        fi
+        cp "$CONFIG_FILE" openwrt/.config
         cd openwrt
-        $GITHUB_WORKSPACE/$DIY_P2_SH
+        bash "$GITHUB_WORKSPACE/$DIY_P2_SH"
 
     - name: SSH connection to Actions
       uses: P3TERX/ssh2actions@v1.0.0
-      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false') || contains(github.event.action, 'ssh')
+      if: inputs.config_only != true && (github.event.inputs.ssh == 'true' || contains(github.event.action, 'ssh'))
       env:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
+    - name: Validate final configuration
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/build-logs"
+        cp openwrt/.config "$GITHUB_WORKSPACE/build-logs/requested.config"
+        cd openwrt
+        make defconfig 2>&1 | tee "$GITHUB_WORKSPACE/build-logs/config.log"
+        cp .config "$GITHUB_WORKSPACE/build-logs/final.config"
+        cp feeds.conf.default "$GITHUB_WORKSPACE/build-logs/feeds.conf.default"
+        bash "$GITHUB_WORKSPACE/scripts/check-config.sh" "$GITHUB_WORKSPACE/build-logs/requested.config" .config
+        {
+          echo "LEDE=$(git rev-parse HEAD)"
+          echo "MMWX=$(git -C package/luci-theme-mmwx rev-parse HEAD)"
+          echo "OpenClash=$(git -C package/lean/OpenClash rev-parse HEAD)"
+          echo "NetSpeedTest=$(git -C package/lean/NetSpeedTest rev-parse HEAD)"
+        } > "$GITHUB_WORKSPACE/build-logs/source-revisions.txt"
+
     - name: Download package
       id: package
+      if: inputs.config_only != true
+      timeout-minutes: 75
+      env:
+        BUILD_LOG_DIR: ${{ github.workspace }}/build-logs
       run: |
         cd openwrt
-        make defconfig
-        make download -j8
-        find dl -size -1024c -exec ls -l {} \;
-        find dl -size -1024c -exec rm -f {} \;
+        bash "$GITHUB_WORKSPACE/scripts/download-packages.sh"
+
+    - name: Save downloaded sources
+      if: always() && !cancelled() && steps.downloads-cache.outputs.cache-primary-key != '' && steps.downloads-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      continue-on-error: true
+      with:
+        path: /workdir/openwrt/dl
+        key: ${{ steps.downloads-cache.outputs.cache-primary-key }}
 
     - name: Compile the firmware
       id: compile
+      if: inputs.config_only != true
       run: |
         cd openwrt
         echo -e "$(nproc) thread compile"
-        make -j$(nproc) || make -j2 || make -j2 V=s
-        echo "::set-output name=status::success"
+        if ! make -j"$(nproc)" 2>&1 | tee "$GITHUB_WORKSPACE/build-logs/build.log"; then
+          make -j2 V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build-logs/build.log"
+        fi
+        echo "status=success" >> "$GITHUB_OUTPUT"
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
-        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
-        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+        if [ -s DEVICE_NAME ]; then
+          echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> "$GITHUB_ENV"
+        fi
+        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> "$GITHUB_ENV"
+
+    - name: Upload build diagnostics
+      if: always() && !cancelled()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs-${{ github.run_id }}-${{ github.run_attempt }}
+        path: build-logs/
+        if-no-files-found: ignore
+        retention-days: 14
 
     - name: Check space usage
       if: (!cancelled())
       run: df -hT
 
     - name: Upload bin directory
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@v4
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
       with:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
@@ -163,57 +230,68 @@ jobs:
 
     - name: Organize files
       id: organize
-      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      if: success() && steps.compile.outputs.status == 'success' && (env.UPLOAD_FIRMWARE == 'true' || env.UPLOAD_RELEASE == 'true')
       run: |
         cd openwrt/bin/targets/*/*
-        rm -rf packages
-        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
-        echo "::set-output name=status::success"
+        if ! find . -maxdepth 1 -type f \( -name '*.img' -o -name '*.img.gz' -o -name '*.vmdk' -o -name '*.qcow2' -o -name '*.vhdx' \) -print -quit | grep -q .; then
+          echo '::error::未找到 x86 固件镜像，停止发布。'
+          exit 1
+        fi
+        mkdir -p "$GITHUB_WORKSPACE/firmware"
+        find . -maxdepth 1 -type f -exec cp -t "$GITHUB_WORKSPACE/firmware" {} +
+        cp "$GITHUB_WORKSPACE/build-logs/source-revisions.txt" "$GITHUB_WORKSPACE/firmware/"
+        echo "FIRMWARE=$GITHUB_WORKSPACE/firmware" >> "$GITHUB_ENV"
+        echo "status=success" >> "$GITHUB_OUTPUT"
 
     - name: Upload firmware directory
-      uses: actions/upload-artifact@main
-      if: steps.organize.outputs.status == 'success' && !cancelled()
+      uses: actions/upload-artifact@v4
+      if: success() && steps.organize.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true'
       with:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
     - name: Upload firmware to cowtransfer
       id: cowtransfer
-      if: steps.organize.outputs.status == 'success' && env.UPLOAD_COWTRANSFER == 'true' && !cancelled()
+      if: success() && steps.organize.outputs.status == 'success' && env.UPLOAD_COWTRANSFER == 'true'
       run: |
         curl -fsSL git.io/file-transfer | sh
         ./transfer cow --block 2621440 -s -p 64 --no-progress ${FIRMWARE} 2>&1 | tee cowtransfer.log
         echo "::warning file=cowtransfer.com::$(cat cowtransfer.log | grep https)"
-        echo "::set-output name=url::$(cat cowtransfer.log | grep https | cut -f3 -d" ")"
+        echo "url=$(grep https cowtransfer.log | cut -f3 -d' ')" >> "$GITHUB_OUTPUT"
 
     - name: Upload firmware to WeTransfer
       id: wetransfer
-      if: steps.organize.outputs.status == 'success' && env.UPLOAD_WETRANSFER == 'true' && !cancelled()
+      if: success() && steps.organize.outputs.status == 'success' && env.UPLOAD_WETRANSFER == 'true'
       run: |
         curl -fsSL git.io/file-transfer | sh
         ./transfer wet -s -p 16 --no-progress ${FIRMWARE} 2>&1 | tee wetransfer.log
         echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
-        echo "::set-output name=url::$(cat wetransfer.log | grep https | cut -f3 -d" ")"
+        echo "url=$(grep https wetransfer.log | cut -f3 -d' ')" >> "$GITHUB_OUTPUT"
 
     - name: Generate release tag
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: success() && steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true'
       run: |
-        echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
-        touch release.txt
-        [ $UPLOAD_COWTRANSFER = true ] && echo "🔗 [Cowtransfer](${{ steps.cowtransfer.outputs.url }})" >> release.txt
-        [ $UPLOAD_WETRANSFER = true ] && echo "🔗 [WeTransfer](${{ steps.wetransfer.outputs.url }})" >> release.txt
-        echo "::set-output name=status::success"
+        echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> "$GITHUB_OUTPUT"
+        {
+          echo 'MMWX 为默认主题，内置官方 OpenClash。'
+          echo
+          echo 'Source revisions:'
+          cat build-logs/source-revisions.txt
+        } > release.txt
+        echo "status=success" >> "$GITHUB_OUTPUT"
 
     - name: Upload firmware to release
-      uses: softprops/action-gh-release@v1
-      if: steps.tag.outputs.status == 'success' && !cancelled()
+      id: release
+      uses: softprops/action-gh-release@v2
+      if: success() && steps.tag.outputs.status == 'success' && steps.organize.outputs.status == 'success'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
+        fail_on_unmatched_files: true
 
     # - name: Delete workflow runs
     #   uses: GitRML/delete-workflow-runs@main
@@ -222,7 +300,7 @@ jobs:
     #     keep_minimum_runs: 1
 
     - name: Delete workflow runs
-      if: always()
+      if: always() && inputs.config_only != true
       continue-on-error: true
       uses: GitRML/delete-workflow-runs@main
       with:
@@ -231,7 +309,8 @@ jobs:
 
     - name: Remove old Releases
       uses: dev-drprasad/delete-older-releases@v0.1.0
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: success() && steps.release.outcome == 'success' && env.UPLOAD_RELEASE == 'true'
+      continue-on-error: true
       with:
         keep_latest: 30
         delete_tags: true
