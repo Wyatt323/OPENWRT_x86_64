@@ -183,6 +183,8 @@ jobs:
         bash "$GITHUB_WORKSPACE/scripts/check-config.sh" "$GITHUB_WORKSPACE/build-logs/requested.config" .config
         {
           echo "LEDE=$(git rev-parse HEAD)"
+          echo "LuCI=$(git -C feeds/luci rev-parse HEAD)"
+          echo "Argon=$(git -C package/luci-theme-argon rev-parse HEAD)"
           echo "MMWX=$(git -C package/luci-theme-mmwx rev-parse HEAD)"
           echo "OpenClash=$(git -C package/lean/OpenClash rev-parse HEAD)"
           echo "NetSpeedTest=$(git -C package/lean/NetSpeedTest rev-parse HEAD)"

@@ -24,6 +24,8 @@ fi
 
 # 使用独立的 Argon 源，先移除 feed 安装的同名包链接。
 ./scripts/feeds uninstall luci-theme-argon
+# 新版 Argon 已集成设置及翻译，旧插件会覆盖同名中文包并引入缺失依赖。
+./scripts/feeds uninstall luci-app-argon-config
 git clone https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
 
 # 本固件不使用 Open vSwitch；当前 feed 的同名 PROVIDES 会生成自依赖。
