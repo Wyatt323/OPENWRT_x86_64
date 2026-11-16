@@ -1,0 +1,55 @@
+--- a/package/libs/gettext-full/Makefile
++++ b/package/libs/gettext-full/Makefile
+@@ -70,7 +70,19 @@
+   ABI_VERSION:=8
+ endef
+ 
+-export GNULIB_SRCDIR:=$(HOST_GNULIB_SRCDIR)
++# gettext 0.22.5's local patches require stable-202401 gnulib. Keep this
++# snapshot private to gettext; the rest of LEDE uses its current tools/gnulib.
++GETTEXT_GNULIB_REV:=c99c8d491850dc3a6e0b8604a2729d8bc5c0eff1
++GETTEXT_GNULIB_SOURCE:=gnulib-$(GETTEXT_GNULIB_REV).tar.gz
++
++define Download/gettext-gnulib
++  FILE:=$(GETTEXT_GNULIB_SOURCE)
++  URL:=https://git.savannah.gnu.org/cgit/gnulib.git/snapshot
++  HASH:=8e6f4a907d9677b55fd452e1340a3e030a6f530b138d420c11975da33f086b1e
++endef
++$(eval $(call Download,gettext-gnulib))
++
++$(STAMP_PREPARED) $(HOST_STAMP_PREPARED): $(DL_DIR)/$(GETTEXT_GNULIB_SOURCE)
+ 
+ TARGET_CFLAGS += $(FPIC)
+ ifneq ($(HOST_OS),Linux)
+@@ -113,6 +125,7 @@
+ define Host/Bootstrap
+ 	( \
+ 		cd $(HOST_BUILD_DIR); \
++		GNULIB_SRCDIR="$(HOST_BUILD_DIR)/gnulib-$(GETTEXT_GNULIB_REV)" \
+ 		$(AM_TOOL_PATHS) \
+ 		./autogen.sh \
+ 	)
+@@ -120,6 +133,7 @@
+ 
+ define Host/Prepare
+ 	$(call Host/Prepare/Default)
++	$(TAR) -C $(HOST_BUILD_DIR) -xzf $(DL_DIR)/$(GETTEXT_GNULIB_SOURCE)
+ 	$(if $(QUILT),,$(call Host/Bootstrap))
+ endef
+ 
+@@ -136,6 +150,7 @@
+ define Build/Bootstrap
+ 	( \
+ 		cd $(PKG_BUILD_DIR); \
++		GNULIB_SRCDIR="$(PKG_BUILD_DIR)/gnulib-$(GETTEXT_GNULIB_REV)" \
+ 		$(AM_TOOL_PATHS) \
+ 		./autogen.sh \
+ 	)
+@@ -143,6 +158,7 @@
+ 
+ define Build/Prepare
+ 	$(call Build/Prepare/Default)
++	$(TAR) -C $(PKG_BUILD_DIR) -xzf $(DL_DIR)/$(GETTEXT_GNULIB_SOURCE)
+ 	$(if $(QUILT),,$(call Build/Bootstrap))
+ endef
+ 

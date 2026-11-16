@@ -10,6 +10,12 @@ export GIT_TERMINAL_PROMPT=0
 test -f include/toplevel.mk
 test -f feeds/luci/luci.mk
 
+# gettext 0.22.5 的本地补丁不兼容新版 gnulib，只为此包固定兼容快照。
+if [ -f package/libs/gettext-full/Makefile ] && \
+   grep -Fxq 'PKG_VERSION:=0.22.5' package/libs/gettext-full/Makefile; then
+    patch --batch --forward -p1 < "$(dirname "${BASH_SOURCE[0]}")/patches/lede/010-gettext-use-compatible-gnulib.patch"
+fi
+
 # LAN 地址和网关统一使用 files/etc/config/network 中的配置。
 # 当前 LuCI 已使用 JS 状态页，无需修改旧 Lua 温度显示模板。
 # 系统版本日期由 LEDE default-settings 自动生成。
