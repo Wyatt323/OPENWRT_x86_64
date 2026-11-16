@@ -9,6 +9,7 @@
 #
 
 name: Build OpenWrt_x86_64
+run-name: ${{ inputs.gettext_only && 'Validate gettext host build' || (inputs.config_only && 'Validate OpenWrt configuration' || 'Build OpenWrt_x86_64') }}
 
 permissions:
   contents: write
@@ -32,6 +33,11 @@ on:
         default: 'false'
       config_only:
         description: '只验证源码和最终配置，不下载或编译固件'
+        type: boolean
+        required: false
+        default: false
+      gettext_only:
+        description: '只编译验证 gettext 主机工具，不生成固件'
         type: boolean
         required: false
         default: false
@@ -208,9 +214,18 @@ jobs:
         path: /workdir/openwrt/dl
         key: ${{ steps.downloads-cache.outputs.cache-primary-key }}
 
+    - name: Compile and verify gettext host tools
+      if: inputs.config_only != true
+      timeout-minutes: 75
+      env:
+        BUILD_LOG_DIR: ${{ github.workspace }}/build-logs
+      run: |
+        cd openwrt
+        bash "$GITHUB_WORKSPACE/scripts/build-gettext-host.sh"
+
     - name: Compile the firmware
       id: compile
-      if: inputs.config_only != true
+      if: inputs.config_only != true && inputs.gettext_only != true
       run: |
         cd openwrt
         echo -e "$(nproc) thread compile"
@@ -316,7 +331,7 @@ jobs:
     #     keep_minimum_runs: 1
 
     - name: Delete workflow runs
-      if: always() && inputs.config_only != true
+      if: always() && inputs.config_only != true && inputs.gettext_only != true
       continue-on-error: true
       uses: GitRML/delete-workflow-runs@main
       with:
