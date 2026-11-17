@@ -22,8 +22,9 @@ LAN 管理地址为 **192.168.3.201**，网关和 DNS 为 `192.168.3.1`，以 `f
 
 - 手动运行时勾选 `config_only`，只检查 feeds、额外软件包和 `make defconfig` 后的最终配置，不执行固件下载、编译或发布。
 - 只勾选 `gettext_only` 时，会下载依赖并实际编译 gettext 主机工具，检查安装后的 `msgfmt` 能否运行，不生成或发布固件。与 `config_only` 同时勾选时，只执行配置检查。
-- 正常编译时保持 `config_only` 和 `gettext_only` 均不勾选。固件编译前先验证 gettext 主机工具。下载阶段首次最多 35 分钟，失败后降低并发重试，最多再运行 25 分钟；校验由构建系统负责，不按文件大小删除下载内容。
-- 下载文件使用 Actions 缓存。下载或编译失败时，可以在该任务的 Artifacts 中下载 `build-logs`，查看 `download.log`、`tools.log`、`gettext-host.log`、`build.log`、最终配置和源码提交版本。`gettext-config` 目录保留 gettext 的配置日志、宏和生成的头文件。
+- 正常编译时保持 `config_only` 和 `gettext_only` 均不勾选。固件编译前先验证 gettext 主机工具，再构建交叉工具链，并实际编译、链接一个 C 程序。下载阶段首次最多 35 分钟，失败后降低并发重试，最多再运行 25 分钟；校验由构建系统负责，不按文件大小删除下载内容。
+- 只缓存源码下载文件，不恢复编译产物或使用会修改 Makefile、跳过工具链的缓存插件，避免单包验证产生的不完整缓存影响固件构建。
+- 下载或编译失败时，可以在该任务的 Artifacts 中下载 `build-logs`，查看 `download.log`、`tools.log`、`gettext-host.log`、`toolchain.log`、`toolchain-check.log`、`build.log`、最终配置和源码提交版本。`gettext-config` 目录保留 gettext 的配置日志、宏和生成的头文件。
 - 如果 `make defconfig` 移除了请求的软件包，会输出警告；请求的 MMWX、OpenClash、网速测试和 EQoS 缺失时直接停止构建。
 - Kconfig 循环依赖按错误处理，同时检查配置日志，避免只凭 Actions 的绿色状态误判配置有效。
 - 软件包全部准备好后才加载仓库配置，并用原始配置核对最终结果，避免 feeds 自动生成配置时丢失新加入的主题和插件。

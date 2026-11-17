@@ -123,13 +123,6 @@ jobs:
         df -hT $PWD
         git clone --depth 1 "$REPO_URL" -b "$REPO_BRANCH" openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
-    - name: Cache
-      if: inputs.config_only != true
-      uses: klever1988/cachewrtbuild@main
-      with:
-        ccache: 'true'
-        prefix: ${{ github.workspace }}/openwrt
-
     - name: Restore downloaded sources
       id: downloads-cache
       if: inputs.config_only != true
@@ -222,6 +215,15 @@ jobs:
       run: |
         cd openwrt
         bash "$GITHUB_WORKSPACE/scripts/build-gettext-host.sh"
+
+    - name: Compile and verify cross toolchain
+      if: inputs.config_only != true && inputs.gettext_only != true
+      timeout-minutes: 120
+      env:
+        BUILD_LOG_DIR: ${{ github.workspace }}/build-logs
+      run: |
+        cd openwrt
+        bash "$GITHUB_WORKSPACE/scripts/build-toolchain.sh"
 
     - name: Compile the firmware
       id: compile
