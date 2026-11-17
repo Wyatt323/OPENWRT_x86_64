@@ -17,6 +17,7 @@ LAN 管理地址为 **192.168.3.201**，网关和 DNS 为 `192.168.3.1`，以 `f
 - 网速测试改用原作者 [sirpdboy/NetSpeedTest](https://github.com/sirpdboy/NetSpeedTest)，包括其配套依赖。
 - EQoS 使用 kenzok8 软件源的通用版本，避开 LuCI 源中仅适用于高通 NSS 的依赖。清理当前源无法选中的 MTWiFi 和旧 PPTP 服务端界面选项；SQM 继续保留。
 - 对当前 LEDE 的 dnsmasq IPset 循环依赖和网速测试的过期 Python 依赖做兼容处理；不安装本配置未使用、会生成自依赖的 Open vSwitch feed 包。
+- packages 固定为 `bdb45ca0f4b1cb38605098021012967425dcf95d`，LuCI 25.12 固定为 `e881fed794a36dd18f282a4e227b7a1ced5679e5`。这两个提交保留 LEDE 必需的 PCI 数据库和 LuCI 网络模块，避开 2026-11-17 上游将它们移至 QWRT 核心后产生的依赖缺失。
 
 ## 验证与排查
 
@@ -25,7 +26,7 @@ LAN 管理地址为 **192.168.3.201**，网关和 DNS 为 `192.168.3.1`，以 `f
 - 正常编译时保持 `config_only` 和 `gettext_only` 均不勾选。固件编译前先验证 gettext 主机工具，再构建交叉工具链，并实际编译、链接一个 C 程序。下载阶段首次最多 35 分钟，失败后降低并发重试，最多再运行 25 分钟；校验由构建系统负责，不按文件大小删除下载内容。
 - 只缓存源码下载文件，不恢复编译产物或使用会修改 Makefile、跳过工具链的缓存插件，避免单包验证产生的不完整缓存影响固件构建。
 - 下载或编译失败时，可以在该任务的 Artifacts 中下载 `build-logs`，查看 `download.log`、`tools.log`、`gettext-host.log`、`toolchain.log`、`toolchain-check.log`、`build.log`、最终配置和源码提交版本。`gettext-config` 目录保留 gettext 的配置日志、宏和生成的头文件。
-- 如果 `make defconfig` 移除了请求的软件包，会输出警告；请求的 MMWX、OpenClash、网速测试和 EQoS 缺失时直接停止构建。
+- 如果 `make defconfig` 移除了请求的软件包，会输出警告；请求的 MMWX、OpenClash、网速测试、EQoS、LuCI 网络模块或 PCI 数据库缺失时直接停止构建。诊断日志记录所有 feeds 的实际提交版本。
 - Kconfig 循环依赖按错误处理，同时检查配置日志，避免只凭 Actions 的绿色状态误判配置有效。
 - 软件包全部准备好后才加载仓库配置，并用原始配置核对最终结果，避免 feeds 自动生成配置时丢失新加入的主题和插件。
 - 只有编译成功且实际生成 x86 镜像后才会上传固件和创建 Release。

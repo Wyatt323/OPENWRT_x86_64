@@ -13,6 +13,15 @@
 set -Eeuo pipefail
 trap 'echo "::error file=diy-part1.sh,line=$LINENO::添加软件源失败"' ERR
 
+# 2026-11-17 的 feeds 把网络菜单、PCI 数据库等包移到了 QWRT 核心。
+# 当前 LEDE 核心不提供这些包，固定为移除前的兼容提交。
+sed -i -E \
+    -e 's@^src-git(-full)? packages .*@src-git packages https://github.com/coolsnowwolf/packages.git^bdb45ca0f4b1cb38605098021012967425dcf95d@' \
+    -e 's@^src-git(-full)? luci .*@src-git luci https://github.com/coolsnowwolf/luci.git^e881fed794a36dd18f282a4e227b7a1ced5679e5@' \
+    feeds.conf.default
+grep -Fxq 'src-git packages https://github.com/coolsnowwolf/packages.git^bdb45ca0f4b1cb38605098021012967425dcf95d' feeds.conf.default
+grep -Fxq 'src-git luci https://github.com/coolsnowwolf/luci.git^e881fed794a36dd18f282a4e227b7a1ced5679e5' feeds.conf.default
+
 # Uncomment a feed source
 sed -i 's/^#\(.*helloworld\)/\1/' feeds.conf.default
 
